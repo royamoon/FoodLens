@@ -49,15 +49,38 @@ let FoodController = class FoodController {
         const accessToken = authHeader?.substring(7);
         return this.foodService.findOne(id, req.user.id, accessToken);
     }
-    update(id, updateFoodDto, req) {
+    async update(id, updateFoodDto, req) {
+        console.log('[DEBUG] FoodController.update - Request received');
+        console.log('[DEBUG] FoodController.update - ID:', id);
+        console.log('[DEBUG] FoodController.update - User:', JSON.stringify(req.user, null, 2));
+        console.log('[DEBUG] FoodController.update - Body:', JSON.stringify(updateFoodDto, null, 2));
         const authHeader = req.headers.authorization;
         const accessToken = authHeader?.substring(7);
-        return this.foodService.update(id, updateFoodDto, req.user.id, accessToken);
+        try {
+            const result = await this.foodService.update(id, updateFoodDto, req.user.id, accessToken);
+            console.log('[DEBUG] FoodController.update - Success, returning result');
+            return result;
+        }
+        catch (error) {
+            console.error('[ERROR] FoodController.update - Error occurred:', error);
+            throw error;
+        }
     }
-    remove(id, req) {
+    async remove(id, req) {
+        console.log('[DEBUG] FoodController.remove - Request received');
+        console.log('[DEBUG] FoodController.remove - ID:', id);
+        console.log('[DEBUG] FoodController.remove - User:', JSON.stringify(req.user, null, 2));
         const authHeader = req.headers.authorization;
         const accessToken = authHeader?.substring(7);
-        return this.foodService.remove(id, req.user.id, accessToken);
+        try {
+            const result = await this.foodService.remove(id, req.user.id, accessToken);
+            console.log('[DEBUG] FoodController.remove - Success, returning result');
+            return result;
+        }
+        catch (error) {
+            console.error('[ERROR] FoodController.remove - Error occurred:', error);
+            throw error;
+        }
     }
 };
 exports.FoodController = FoodController;
@@ -99,7 +122,7 @@ __decorate([
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], FoodController.prototype, "remove", null);
 exports.FoodController = FoodController = __decorate([
     (0, common_1.Controller)('food'),

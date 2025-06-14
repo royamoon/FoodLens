@@ -28,7 +28,8 @@ CREATE POLICY "Users can insert own foods" ON public.foods
 
 -- Users can only update their own foods
 CREATE POLICY "Users can update own foods" ON public.foods
-    FOR UPDATE USING (auth.uid() = user_id);
+    FOR UPDATE USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 -- Users can only delete their own foods
 CREATE POLICY "Users can delete own foods" ON public.foods

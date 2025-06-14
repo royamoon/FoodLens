@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { useAtom } from 'jotai';
-import { historyAtom, FoodAnalysis, MealType } from '@/atoms/analysis';
+import { historyAtom, FoodAnalysis, MealType, updateFoodEntryAtom, deleteFoodEntryAtom } from '@/atoms/analysis';
 import { useState, useEffect, useRef } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +26,8 @@ export default function FoodDetail() {
   const router = useRouter();
   const { id, source } = useLocalSearchParams<{ id: string; source?: string }>();
   const [history, setHistory] = useAtom(historyAtom);
+  const [, updateFoodEntry] = useAtom(updateFoodEntryAtom);
+  const [, deleteFoodEntry] = useAtom(deleteFoodEntryAtom);
   const insets = useSafeAreaInsets();
   
   const [meal, setMeal] = useState<FoodAnalysis | null>(null);
@@ -33,6 +35,8 @@ export default function FoodDetail() {
   const [editedNotes, setEditedNotes] = useState('');
   const [editedMealType, setEditedMealType] = useState<MealType>('Breakfast');
   const [editedLocation, setEditedLocation] = useState<LocationType | undefined>();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const notesInputRef = useRef<TextInput>(null);
 
@@ -212,18 +216,39 @@ export default function FoodDetail() {
     setIsEditing(true);
   };
 
-  const handleSave = () => {
-    if (!meal) return;
-    const notesWithLocation = `${editedLocation ? `📍 ${editedLocation.charAt(0).toUpperCase() + editedLocation.slice(1)}\n` : ''}${editedNotes}`;
-    const updatedHistory = history.map(m => 
-      m.id === meal.id 
-        ? { ...m, notes: notesWithLocation, mealType: editedMealType }
-        : m
-    );
-    setHistory(updatedHistory);
-    setMeal({ ...meal, notes: notesWithLocation, mealType: editedMealType });
-    setIsEditing(false);
-    Alert.alert('Success', 'Meal updated successfully!');
+  const handleSave = async () => {
+    if (!meal || isSaving) return;
+    
+    setIsSaving(true);
+    
+    try {
+      const notesWithLocation = `${editedLocation ? `📍 ${editedLocation.charAt(0).toUpperCase() + editedLocation.slice(1)}\n` : ''}${editedNotes}`;
+      
+      const updates = {
+        notes: notesWithLocation,
+        mealType: editedMealType,
+      };
+
+      console.log('Updating meal:', meal.id, updates);
+      
+      const updatedEntry = await updateFoodEntry({
+        id: meal.id,
+        updates,
+      });
+
+      if (updatedEntry) {
+        setMeal({ ...meal, ...updates });
+        setIsEditing(false);
+        Alert.alert('Success', 'Meal updated successfully!');
+      } else {
+        Alert.alert('Error', 'Failed to update meal. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating meal:', error);
+      Alert.alert('Error', 'Failed to update meal. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -241,7 +266,8 @@ export default function FoodDetail() {
   };
 
   const handleDelete = () => {
-    if (!meal) return;
+    if (!meal || isDeleting) return;
+    
     Alert.alert(
       'Delete Meal',
       'Are you sure you want to delete this meal? This action cannot be undone.',
@@ -253,16 +279,31 @@ export default function FoodDetail() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            const updatedHistory = history.filter(m => m.id !== meal.id);
-            setHistory(updatedHistory);
-            // Navigate back to the source screen
-            if (source === 'history') {
-              router.push('/history');
-            } else {
-              router.push('/');
+          onPress: async () => {
+            setIsDeleting(true);
+            
+            try {
+              console.log('Deleting meal:', meal.id);
+              
+              const success = await deleteFoodEntry(meal.id);
+              
+              if (success) {
+                // Navigate back to the source screen
+                if (source === 'history') {
+                  router.push('/history');
+                } else {
+                  router.push('/');
+                }
+                Alert.alert('Deleted', 'Meal has been deleted successfully.');
+              } else {
+                Alert.alert('Error', 'Failed to delete meal. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error deleting meal:', error);
+              Alert.alert('Error', 'Failed to delete meal. Please try again.');
+            } finally {
+              setIsDeleting(false);
             }
-            Alert.alert('Deleted', 'Meal has been deleted successfully.');
           },
         },
       ]
@@ -328,10 +369,15 @@ export default function FoodDetail() {
                   <Ionicons name="create-outline" size={24} color="#F472B6" />
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={styles.headerButton}
+                  style={[styles.headerButton, isDeleting && { opacity: 0.7 }]}
                   onPress={handleDelete}
+                  disabled={isDeleting}
                 >
-                  <Ionicons name="trash-outline" size={24} color="#EF4444" />
+                  <Ionicons 
+                    name={isDeleting ? "hourglass-outline" : "trash-outline"} 
+                    size={24} 
+                    color="#EF4444" 
+                  />
                 </TouchableOpacity>
               </>
             ) : (
@@ -604,8 +650,9 @@ export default function FoodDetail() {
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
-                      style={styles.saveButton}
+                      style={[styles.saveButton, isSaving && { opacity: 0.7 }]}
                       onPress={handleSave}
+                      disabled={isSaving}
                     >
                       <LinearGradient
                         colors={['#F472B6', '#FB923C']}
@@ -613,8 +660,10 @@ export default function FoodDetail() {
                         end={{ x: 1, y: 0 }}
                         style={styles.saveButtonGradient}
                       >
-                        <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                        <Text style={styles.saveButtonText}>Save Changes</Text>
+                        <Ionicons name={isSaving ? "hourglass" : "checkmark"} size={20} color="#FFFFFF" />
+                        <Text style={styles.saveButtonText}>
+                          {isSaving ? 'Saving...' : 'Save Changes'}
+                        </Text>
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>

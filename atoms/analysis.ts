@@ -103,6 +103,11 @@ export const createFoodEntry = async (food: Omit<FoodAnalysis, 'id' | 'created_a
 
 export const updateFoodEntry = async (id: string, food: Partial<FoodAnalysis>, token: string): Promise<FoodAnalysis | null> => {
   try {
+    console.log('updateFoodEntry - API_BASE_URL:', API_BASE_URL);
+    console.log('updateFoodEntry - id:', id);
+    console.log('updateFoodEntry - token present:', !!token);
+    console.log('updateFoodEntry - food data:', food);
+    
     const response = await fetch(`${API_BASE_URL}/food/${id}`, {
       method: 'PATCH',
       headers: {
@@ -112,11 +117,18 @@ export const updateFoodEntry = async (id: string, food: Partial<FoodAnalysis>, t
       body: JSON.stringify(food),
     });
 
+    console.log('updateFoodEntry - response status:', response.status);
+    console.log('updateFoodEntry - response ok:', response.ok);
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('updateFoodEntry - error response:', errorText);
       throw new Error('Failed to update food entry');
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log('updateFoodEntry - success result:', result);
+    return result;
   } catch (error) {
     console.error('Error updating food entry:', error);
     return null;
@@ -125,6 +137,10 @@ export const updateFoodEntry = async (id: string, food: Partial<FoodAnalysis>, t
 
 export const deleteFoodEntry = async (id: string, token: string): Promise<boolean> => {
   try {
+    console.log('deleteFoodEntry - API_BASE_URL:', API_BASE_URL);
+    console.log('deleteFoodEntry - id:', id);
+    console.log('deleteFoodEntry - token present:', !!token);
+    
     const response = await fetch(`${API_BASE_URL}/food/${id}`, {
       method: 'DELETE',
       headers: {
@@ -132,6 +148,14 @@ export const deleteFoodEntry = async (id: string, token: string): Promise<boolea
         'Content-Type': 'application/json',
       },
     });
+
+    console.log('deleteFoodEntry - response status:', response.status);
+    console.log('deleteFoodEntry - response ok:', response.ok);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('deleteFoodEntry - error response:', errorText);
+    }
 
     return response.ok;
   } catch (error) {
@@ -244,6 +268,60 @@ export const addFoodEntryAtom = atom(
       return newEntry;
     }
     return null;
+  }
+);
+
+// Atom for updating food entry
+export const updateFoodEntryAtom = atom(
+  null,
+  async (get, set, { id, updates }: { id: string; updates: Partial<FoodAnalysis> }) => {
+    const authState = get(authStateAtom);
+    console.log('updateFoodEntryAtom - updating food entry:', id, updates);
+    
+    if (!authState.session?.access_token) {
+      console.error('updateFoodEntryAtom - No access token available');
+      throw new Error('Not authenticated');
+    }
+
+    const updatedEntry = await updateFoodEntry(id, updates, authState.session.access_token);
+    if (updatedEntry) {
+      const currentHistory = get(historyAtom);
+      const updatedHistory = currentHistory.map(item => 
+        item.id === id ? { ...item, ...updatedEntry } : item
+      );
+      
+      // Update both local storage and current state
+      set(userHistoryAtom, updatedHistory);
+      set(historyAtom, updatedHistory);
+      return updatedEntry;
+    }
+    return null;
+  }
+);
+
+// Atom for deleting food entry
+export const deleteFoodEntryAtom = atom(
+  null,
+  async (get, set, id: string) => {
+    const authState = get(authStateAtom);
+    console.log('deleteFoodEntryAtom - deleting food entry:', id);
+    
+    if (!authState.session?.access_token) {
+      console.error('deleteFoodEntryAtom - No access token available');
+      throw new Error('Not authenticated');
+    }
+
+    const success = await deleteFoodEntry(id, authState.session.access_token);
+    if (success) {
+      const currentHistory = get(historyAtom);
+      const updatedHistory = currentHistory.filter(item => item.id !== id);
+      
+      // Update both local storage and current state
+      set(userHistoryAtom, updatedHistory);
+      set(historyAtom, updatedHistory);
+      return true;
+    }
+    return false;
   }
 );
 

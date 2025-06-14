@@ -117,34 +117,102 @@ let FoodService = class FoodService {
             .select('*')
             .eq('id', id)
             .eq('user_id', userId)
+            .eq('user_id', userId)
             .single();
         if (error)
             throw new common_1.NotFoundException(`Food with ID ${id} not found`);
         return this._mapFoodToCamelCase(data);
     }
     async update(id, updateFoodDto, userId, accessToken) {
-        const client = this.getClientWithAuth(accessToken);
-        const { data, error } = await client
-            .from(this.tableName)
-            .update(updateFoodDto)
-            .eq('id', id)
-            .eq('user_id', userId)
-            .select()
-            .single();
-        if (error)
-            throw new common_1.NotFoundException(`Food with ID ${id} not found`);
-        return this._mapFoodToCamelCase(data);
+        console.log('[DEBUG] FoodService.update - Starting food update');
+        console.log('[DEBUG] FoodService.update - id:', id);
+        console.log('[DEBUG] FoodService.update - userId:', userId);
+        console.log('[DEBUG] FoodService.update - updateFoodDto:', JSON.stringify(updateFoodDto, null, 2));
+        try {
+            const client = this.getClientWithAuth(accessToken);
+            const { data: existing, error: findError } = await client
+                .from(this.tableName)
+                .select('id, user_id')
+                .eq('id', id)
+                .eq('user_id', userId)
+                .single();
+            console.log('[DEBUG] FoodService.update - Existing food check:', JSON.stringify(existing, null, 2));
+            if (findError || !existing) {
+                console.error('[ERROR] FoodService.update - Food not found:', findError);
+                throw new common_1.NotFoundException(`Food with ID ${id} not found`);
+            }
+            const snakePayload = {};
+            for (const key in updateFoodDto) {
+                if (updateFoodDto[key] !== undefined) {
+                    const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                    snakePayload[snakeKey] = updateFoodDto[key];
+                }
+            }
+            console.log('[DEBUG] FoodService.update - Final payload to Supabase:', JSON.stringify(snakePayload, null, 2));
+            const { data, error } = await client
+                .from(this.tableName)
+                .update(snakePayload)
+                .eq('id', id)
+                .eq('user_id', userId)
+                .select()
+                .single();
+            console.log('[DEBUG] FoodService.update - Supabase response data:', JSON.stringify(data, null, 2));
+            console.log('[DEBUG] FoodService.update - Supabase response error:', JSON.stringify(error, null, 2));
+            if (error) {
+                console.error('[ERROR] FoodService.update - Supabase error:', error);
+                throw new common_1.NotFoundException(`Failed to update food with ID ${id}`);
+            }
+            const result = this._mapFoodToCamelCase(data);
+            console.log('[DEBUG] FoodService.update - Final result:', JSON.stringify(result, null, 2));
+            return result;
+        }
+        catch (error) {
+            console.error('[ERROR] FoodService.update - Exception caught:', error);
+            throw error;
+        }
     }
     async remove(id, userId, accessToken) {
-        const client = this.getClientWithAuth(accessToken);
-        const { error } = await client
-            .from(this.tableName)
-            .delete()
-            .eq('id', id)
-            .eq('user_id', userId);
-        if (error)
-            throw new common_1.NotFoundException(`Food with ID ${id} not found`);
-        return { message: `Food with ID ${id} deleted successfully` };
+        console.log('[DEBUG] FoodService.remove - Starting food deletion');
+        console.log('[DEBUG] FoodService.remove - id:', id);
+        console.log('[DEBUG] FoodService.remove - userId:', userId);
+        try {
+            const client = this.getClientWithAuth(accessToken);
+            const { data: existing, error: findError } = await client
+                .from(this.tableName)
+                .select('id, user_id')
+                .eq('id', id)
+                .single();
+            console.log('[DEBUG] FoodService.remove - Existing food check:', JSON.stringify(existing, null, 2));
+            console.log('[DEBUG] FoodService.remove - Find error:', JSON.stringify(findError, null, 2));
+            if (findError || !existing) {
+                console.error('[ERROR] FoodService.remove - Food not found:', findError);
+                throw new common_1.NotFoundException(`Food with ID ${id} not found`);
+            }
+            if (existing.user_id !== userId) {
+                console.error('[ERROR] FoodService.remove - User mismatch:', {
+                    existing_user_id: existing.user_id,
+                    requested_user_id: userId
+                });
+                throw new common_1.NotFoundException(`Food with ID ${id} not found`);
+            }
+            const { error } = await client
+                .from(this.tableName)
+                .delete()
+                .eq('id', id)
+                .eq('user_id', userId);
+            console.log('[DEBUG] FoodService.remove - Supabase response error:', JSON.stringify(error, null, 2));
+            if (error) {
+                console.error('[ERROR] FoodService.remove - Supabase error:', error);
+                throw new common_1.NotFoundException(`Failed to delete food with ID ${id}`);
+            }
+            const result = { message: `Food with ID ${id} deleted successfully` };
+            console.log('[DEBUG] FoodService.remove - Success:', result);
+            return result;
+        }
+        catch (error) {
+            console.error('[ERROR] FoodService.remove - Exception caught:', error);
+            throw error;
+        }
     }
 };
 exports.FoodService = FoodService;
