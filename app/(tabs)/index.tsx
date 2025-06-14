@@ -6,10 +6,14 @@ import {
   SafeAreaView,
   StatusBar,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAtom } from 'jotai';
-import { historyAtom } from '@/atoms/analysis';
+import { historyAtom, loadHistoryAtom } from '@/atoms/analysis';
+import { userAtom, authStateAtom } from '@/atoms/auth';
+import { logoutAtom } from '@/atoms/auth-actions';
+import { useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -18,6 +22,35 @@ const { width } = Dimensions.get('window');
 export default function Index() {
   const router = useRouter();
   const [history] = useAtom(historyAtom);
+  const [user] = useAtom(userAtom);
+  const [authState] = useAtom(authStateAtom);
+  const [, loadHistory] = useAtom(loadHistoryAtom);
+  const [, logout] = useAtom(logoutAtom);
+
+
+
+  useEffect(() => {
+    // Load user's food history when component mounts and user is authenticated
+    if (authState.user && authState.session?.access_token) {
+      console.log('Auto-loading history for user:', authState.user.email);
+      loadHistory();
+    }
+  }, [authState.user, authState.session?.access_token, loadHistory]);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: logout 
+        },
+      ]
+    );
+  };
 
 
 
@@ -51,7 +84,15 @@ export default function Index() {
       <View style={styles.mainContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.greetingText}>{getGreeting()}</Text>
+          <View style={styles.headerTop}>
+            <View style={styles.userInfo}>
+              <Text style={styles.greetingText}>{getGreeting()}</Text>
+              <Text style={styles.userEmail}>{user?.email}</Text>
+            </View>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={24} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.dateText}>{formatDate(new Date())}</Text>
         </View>
 
@@ -156,11 +197,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 16,
+  },
+  userInfo: {
+    flex: 1,
+    alignItems: 'center',
+  },
   greetingText: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: '#9CA3AF',
+  },
+  logoutButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
   dateText: {
     fontSize: 16,

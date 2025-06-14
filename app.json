@@ -1,15 +1,20 @@
 {
   "expo": {
-    "name": "calai",
-    "slug": "calai",
+    "name": "FoodLens",
+    "slug": "foodlens",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "scheme": "foodlens",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.creativelabs.foodlens",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to camera to take photos of food for analysis.",
         "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select images of food for analysis."
@@ -28,28 +33,11 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "server",
+      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "https://galaxies.dev"
-        }
-      ],
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      [
-        "expo-image-picker"
-      ]
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true

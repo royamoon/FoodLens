@@ -10,9 +10,10 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useAtomValue, useAtom } from 'jotai';
-import { analysisAtom, historyAtom, MealType } from '@/atoms/analysis';
+import { analysisAtom, historyAtom, addFoodEntryAtom, MealType } from '@/atoms/analysis';
 
 type LocationType = 'home' | 'work' | 'restaurant' | 'event';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,37 +27,54 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const Page = () => {
   const analysis = useAtomValue(analysisAtom);
   const [history, setHistory] = useAtom(historyAtom);
+  const [, addFoodEntry] = useAtom(addFoodEntryAtom);
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
 
-  const [mealType, setMealType] = useState<MealType | undefined>();
-  const [location, setLocation] = useState<LocationType | undefined>();
+  const [mealType, setMealType] = useState<MealType | null>(null);
+  const [location, setLocation] = useState<LocationType | null>(null);
   const [notes, setNotes] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
-    if (!analysis) return;
-    const newEntry = {
-      ...analysis,
-      id: Date.now().toString(),
-      timestamp: Date.now(),
-      mealType,
-      notes: `${location ? `📍 ${location.charAt(0).toUpperCase() + location.slice(1)}\n` : ''}${notes}`,
-    };
-    setHistory([newEntry, ...history]);
+  const handleSave = async () => {
+    if (!analysis || !mealType || isSaving) return;
     
-    // Trigger celebration effect
-    setShowCelebration(true);
-    setShowSuccessMessage(true);
+    setIsSaving(true);
     
-    // Hide celebration after 3 seconds and navigate back
-    setTimeout(() => {
-      setShowCelebration(false);
-      setShowSuccessMessage(false);
-      router.back();
-    }, 3000);
+    try {
+      const foodData = {
+        ...analysis,
+        timestamp: new Date().toISOString(),
+        mealType,
+        notes: `${location ? `📍 ${location.charAt(0).toUpperCase() + location.slice(1)}\n` : ''}${notes}`,
+      };
+      
+      // Save to database via API
+      const savedEntry = await addFoodEntry(foodData);
+      
+      if (savedEntry) {
+        // Trigger celebration effect
+        setShowCelebration(true);
+        setShowSuccessMessage(true);
+        
+        // Hide celebration after 3 seconds and navigate back
+        setTimeout(() => {
+          setShowCelebration(false);
+          setShowSuccessMessage(false);
+          router.back();
+        }, 3000);
+      } else {
+        Alert.alert('Error', 'Failed to save meal. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving meal:', error);
+      Alert.alert('Error', 'Failed to save meal. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleNotesFocus = () => {
@@ -406,23 +424,23 @@ const Page = () => {
           marginBottom: -Math.max(insets.bottom, 0),
         }]}>
           <TouchableOpacity 
-            style={[styles.saveButtonContainer, !mealType && styles.saveButtonDisabled]}
+            style={[styles.saveButtonContainer, (!mealType || isSaving) && styles.saveButtonDisabled]}
             onPress={handleSave}
-            disabled={!mealType}
+            disabled={!mealType || isSaving}
           >
             <LinearGradient
-              colors={!mealType ? ['#D1D5DB', '#D1D5DB'] : ['#F472B6', '#FB923C']}
+              colors={(!mealType || isSaving) ? ['#D1D5DB', '#D1D5DB'] : ['#F472B6', '#FB923C']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.saveButton}
             >
               <Ionicons 
-                name="checkmark-circle" 
+                name={isSaving ? "hourglass-outline" : "checkmark-circle"} 
                 size={24} 
-                color={!mealType ? '#9CA3AF' : '#FFFFFF'} 
+                color={(!mealType || isSaving) ? '#9CA3AF' : '#FFFFFF'} 
               />
-              <Text style={[styles.saveButtonText, !mealType && styles.saveButtonTextDisabled]}>
-                Save Food Log
+              <Text style={[styles.saveButtonText, (!mealType || isSaving) && styles.saveButtonTextDisabled]}>
+                {isSaving ? 'Saving...' : 'Save Food Log'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
