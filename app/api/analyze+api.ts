@@ -60,7 +60,8 @@ export async function POST(req: Request): Promise<Response> {
     
     Ensure the response is in valid JSON format exactly as specified above, without any markdown formatting.
     Provide realistic estimates based on typical portion sizes and nutritional databases.
-    Be as specific and accurate as possible in identifying the food and its components.`;
+    Be as specific and accurate as possible in identifying the food and its components.
+    If no food can be identified, respond clearly with "identifiedFood": "unknown"`;
 
     // Prepare parts for the API
     const parts = [

@@ -83,7 +83,32 @@ const Page = () => {
     }, 300);
   };
 
-
+  // Check for unknown food when component mounts
+  useEffect(() => {
+    if (analysis && analysis.identifiedFood === 'unknown') {
+      Alert.alert(
+        'Food Not Recognized',
+        'The image is unclear or doesn\'t contain recognizable food. Would you like to go back and take a clearer photo?',
+        [
+          {
+            text: 'Retake Photo',
+            onPress: () => {
+              router.back(); // Go back to camera screen
+            },
+            style: 'default',
+          },
+          {
+            text: 'Continue Anyway',
+            onPress: () => {
+              // Allow user to continue with unknown food
+            },
+            style: 'cancel',
+          },
+        ],
+        { cancelable: false }
+      );
+    }
+  }, [analysis, router]);
 
   if (!analysis) return null;
 
@@ -254,7 +279,26 @@ const Page = () => {
             {/* Food Name */}
             <View style={styles.foodNameSection}>
               <Text style={styles.foodLabel}>Food Detected:</Text>
-              <Text style={styles.foodName}>{analysis.identifiedFood}</Text>
+              {analysis.identifiedFood === 'unknown' ? (
+                <View style={styles.unknownFoodContainer}>
+                  <View style={styles.unknownFoodWarning}>
+                    <Ionicons name="warning-outline" size={24} color="#F59E0B" />
+                    <Text style={styles.unknownFoodText}>Food Not Recognized</Text>
+                  </View>
+                  <Text style={styles.unknownFoodSubtext}>
+                    The image is unclear or doesn't contain recognizable food
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.retakePhotoButton}
+                    onPress={() => router.back()}
+                  >
+                    <Ionicons name="camera-outline" size={18} color="#F472B6" />
+                    <Text style={styles.retakePhotoText}>Retake Photo</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <Text style={styles.foodName}>{analysis.identifiedFood}</Text>
+              )}
             </View>
 
             {/* Meal Type Selection */}
@@ -548,6 +592,49 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1F2937',
     textAlign: 'center',
+  },
+  unknownFoodContainer: {
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  unknownFoodWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  unknownFoodText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#F59E0B',
+  },
+  unknownFoodSubtext: {
+    fontSize: 14,
+    color: '#92400E',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  retakePhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#F472B6',
+  },
+  retakePhotoText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#F472B6',
   },
   section: {
     marginBottom: 24,
