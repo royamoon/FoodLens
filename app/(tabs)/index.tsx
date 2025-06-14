@@ -6,13 +6,12 @@ import {
   SafeAreaView,
   StatusBar,
   Dimensions,
-  Alert,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAtom } from 'jotai';
 import { historyAtom, loadHistoryAtom } from '@/atoms/analysis';
 import { userAtom, authStateAtom } from '@/atoms/auth';
-import { logoutAtom } from '@/atoms/auth-actions';
 import { useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,7 +24,7 @@ export default function Index() {
   const [user] = useAtom(userAtom);
   const [authState] = useAtom(authStateAtom);
   const [, loadHistory] = useAtom(loadHistoryAtom);
-  const [, logout] = useAtom(logoutAtom);
+
 
 
 
@@ -37,20 +36,7 @@ export default function Index() {
     }
   }, [authState.user, authState.session?.access_token, loadHistory]);
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
-          style: 'destructive',
-          onPress: logout 
-        },
-      ]
-    );
-  };
+
 
 
 
@@ -81,17 +67,16 @@ export default function Index() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <View style={styles.mainContent}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.userInfo}>
-              <Text style={styles.greetingText}>{getGreeting()}</Text>
-              <Text style={styles.userEmail}>{user?.email}</Text>
-            </View>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
+          <View style={styles.userInfo}>
+            <Text style={styles.greetingText}>{getGreeting()}</Text>
+            <Text style={styles.userEmail}>{user?.email}</Text>
           </View>
           <Text style={styles.dateText}>{formatDate(new Date())}</Text>
         </View>
@@ -178,7 +163,7 @@ export default function Index() {
             </View>
           )}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -188,25 +173,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  mainContent: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 20,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
     marginBottom: 32,
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 16,
-  },
   userInfo: {
-    flex: 1,
     alignItems: 'center',
+    marginBottom: 16,
   },
   greetingText: {
     fontSize: 28,
@@ -217,11 +198,6 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 14,
     color: '#9CA3AF',
-  },
-  logoutButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
   },
   dateText: {
     fontSize: 16,

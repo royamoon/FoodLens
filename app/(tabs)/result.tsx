@@ -83,6 +83,23 @@ const Page = () => {
     }, 300);
   };
 
+  // Reset form states when component mounts with new analysis
+  useEffect(() => {
+    if (analysis) {
+      setMealType(null);
+      setLocation(null);
+      setNotes('');
+      setShowCelebration(false);
+      setShowSuccessMessage(false);
+      setIsSaving(false);
+      
+      // Reset scroll position to top
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      }, 100);
+    }
+  }, [analysis?.timestamp]); // Reset when new analysis comes in
+
   // Check for unknown food when component mounts
   useEffect(() => {
     if (analysis && analysis.identifiedFood === 'unknown') {

@@ -17,6 +17,7 @@ import { analysisAtom } from '@/atoms/analysis';
 import { useState, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Progress from 'react-native-progress';
 
 // Custom Unknown Food Modal Component
 const UnknownFoodModal = ({ visible, onClose, onRetakePhoto, onChooseFromGallery }) => {
@@ -95,6 +96,27 @@ export default function Camera() {
   const [isLoading, setIsLoading] = useState(false);
   const [showUnknownFoodModal, setShowUnknownFoodModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<'camera' | 'gallery' | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+
+  // Simulate progress loading with smooth animation
+  const simulateProgress = () => {
+    setLoadingProgress(0);
+    
+    // Smooth progress simulation
+    const interval = setInterval(() => {
+      setLoadingProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(interval);
+          return 95;
+        }
+        // Slower at the beginning, faster in the middle, slower at the end
+        const increment = prev < 20 ? 1 : prev < 80 ? 3 : 1;
+        return Math.min(prev + increment, 95);
+      });
+    }, 100);
+    
+    return interval;
+  };
 
   // Handle pending action when modal closes
   useEffect(() => {
@@ -180,6 +202,7 @@ export default function Camera() {
 
       // Show loading immediately after image is captured/selected
       setIsLoading(true);
+      const progressInterval = simulateProgress();
       
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -209,6 +232,10 @@ export default function Camera() {
       
       const foodAnalysis = data.data.foodAnalysis;
       foodAnalysis.image = result.assets[0].uri;
+      foodAnalysis.timestamp = new Date().toISOString();
+      
+      // Complete progress
+      setLoadingProgress(100);
       
       // Check if food is unknown - show custom modal instead of Alert
       if (foodAnalysis.identifiedFood === 'unknown') {
@@ -236,6 +263,7 @@ export default function Camera() {
       Alert.alert('Lỗi', errorMessage);
     } finally {
       setIsLoading(false);
+      setLoadingProgress(0);
     }
   };
 
@@ -262,6 +290,23 @@ export default function Camera() {
           <View style={styles.loadingModalContent}>
             <ActivityIndicator size="large" color="#F472B6" />
             <Text style={styles.modalText}>Recognizing your food...</Text>
+            
+            {/* Progress Bar */}
+            <View style={styles.progressContainer}>
+              <Progress.Bar 
+                progress={loadingProgress / 100}
+                width={240}
+                height={10}
+                color="#F472B6"
+                unfilledColor="#F3F4F6"
+                borderWidth={0}
+                borderRadius={5}
+                animated={true}
+                animationType="timing"
+                animationConfig={{ duration: 300 }}
+              />
+              <Text style={styles.progressText}>{Math.round(loadingProgress)}%</Text>
+            </View>
           </View>
         </View>
       </Modal>
@@ -412,6 +457,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 32,
     alignItems: 'center',
+    minWidth: 280,
+    maxWidth: 320,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -426,6 +473,18 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginTop: 16,
     textAlign: 'center',
+  },
+  progressContainer: {
+    width: '100%',
+    marginTop: 24,
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressText: {
+    fontSize: 15,
+    color: '#6B7280',
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   // Unknown Food Modal Styles - iOS/Material Design inspired
   modalOverlay: {
