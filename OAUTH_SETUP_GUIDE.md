@@ -12,12 +12,16 @@
 ### 1. 📱 Cài Đặt Development Build
 
 ```bash
-# Build đang chạy trong background
-npx eas build --platform android --profile development --local
+# Fixed lockfile issues và force npm
+rm -f bun.lock bun.lockb
+echo "package-manager=npm" > .npmrc
+
+# Build đang chạy trên EAS cloud
+npx eas build --platform android --profile development
 ```
 
 **Khi build xong:**
-- File APK sẽ được tạo trong thư mục dự án
+- Download APK từ EAS dashboard
 - Install APK lên Android device của bạn
 
 ### 2. 🔧 Cập Nhật Supabase Dashboard
