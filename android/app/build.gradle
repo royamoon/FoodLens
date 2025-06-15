@@ -89,7 +89,7 @@ android {
 
     namespace "com.foodlens"
     defaultConfig {
-        applicationId "com.foodlens"
+        applicationId "com.creativelabs.foodlens"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
