@@ -30,11 +30,30 @@ export default function RootLayout() {
   useEffect(() => {
     if (url) {
       console.log('Received deep link:', url);
+      
       // Handle OAuth callback URLs
-      if (url.includes('auth/callback')) {
-        console.log('Processing OAuth callback - redirecting to login');
-        // Navigate to login screen to handle OAuth callback
-        router.replace('/auth/login');
+      if (url.includes('auth/login-callback') || url.includes('access_token') || url.includes('code=')) {
+        console.log('Processing OAuth callback - redirecting to callback page');
+        
+        // Extract URL parameters and navigate to callback page
+        const urlObj = new URL(url);
+        let params: Record<string, string> = {};
+        
+        // Check if parameters are in hash or search
+        if (urlObj.hash) {
+          const hashParams = new URLSearchParams(urlObj.hash.replace('#', ''));
+          hashParams.forEach((value, key) => {
+            params[key] = value;
+          });
+        } else {
+          urlObj.searchParams.forEach((value, key) => {
+            params[key] = value;
+          });
+        }
+        
+        // Navigate to callback page with parameters
+        const queryString = new URLSearchParams(params).toString();
+        router.replace(`/auth/login-callback?${queryString}`);
       }
     }
   }, [url]);

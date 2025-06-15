@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useAtom } from 'jotai';
-import { loginAtom, registerAtom, googleLoginAtom } from '@/atoms/auth-actions';
-import { authStateAtom, API_BASE_URL } from '@/atoms/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loginAtom, registerAtom } from '@/atoms/auth-actions';
+import { authStateAtom } from '@/atoms/auth';
 import { createClient } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
-import * as Linking from 'expo-linking';
+import { getRedirectUrl } from '@/lib/environment';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -25,20 +23,6 @@ export default function LoginScreen() {
   const [authState] = useAtom(authStateAtom);
   const [, login] = useAtom(loginAtom);
   const [, register] = useAtom(registerAtom);
-  const [, googleLogin] = useAtom(googleLoginAtom);
-
-  // Check for OAuth callback URL on mount
-  useEffect(() => {
-    const checkForOAuthCallback = async () => {
-      const url = await Linking.getInitialURL();
-      if (url && url.includes('auth/callback')) {
-        console.log('Found OAuth callback URL on mount:', url);
-        await handleOAuthCallback(url);
-      }
-    };
-    
-    checkForOAuthCallback();
-  }, []);
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -59,14 +43,11 @@ export default function LoginScreen() {
 
   const handleGoogleLogin = async () => {
     try {
-      // Create redirect URI for this app
-      const redirectUri = makeRedirectUri({
-        scheme: 'foodlens',
-        path: 'auth/callback',
-      });
-
+      // Use environment-aware redirect URI
+      const redirectUri = getRedirectUrl();
       console.log('Redirect URI:', redirectUri);
 
+      // Direct Supabase OAuth call
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -96,67 +77,16 @@ export default function LoginScreen() {
 
         console.log('OAuth result:', result);
 
-        if (result.type === 'success') {
-          await handleOAuthCallback(result.url);
-        } else if (result.type === 'cancel') {
+        if (result.type === 'cancel') {
           Alert.alert('Cancelled', 'Google login was cancelled');
-        } else {
-          Alert.alert('Error', 'Google login failed');
+        } else if (result.type === 'dismiss') {
+          Alert.alert('Dismissed', 'Google login was dismissed');
         }
+        // Success case will be handled by the callback page
       }
     } catch (error) {
       console.error('Google login error:', error);
       Alert.alert('Error', error instanceof Error ? error.message : 'Google login failed');
-    }
-  };
-
-  const handleOAuthCallback = async (url: string) => {
-    try {
-      console.log('Processing callback URL:', url);
-      
-      // Extract URL parameters from the callback
-      const urlObj = new URL(url);
-      let params: URLSearchParams;
-      
-      // Check if parameters are in hash or search
-      if (urlObj.hash) {
-        // Remove the # and create URLSearchParams
-        params = new URLSearchParams(urlObj.hash.replace('#', ''));
-      } else {
-        params = urlObj.searchParams;
-      }
-
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-      const code = params.get('code');
-
-      console.log('Extracted tokens:', { accessToken: !!accessToken, refreshToken: !!refreshToken, code: !!code });
-
-      if (code) {
-        // Handle authorization code flow
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) throw error;
-        
-        if (data.session) {
-          await googleLogin({
-            access_token: data.session.access_token,
-            refresh_token: data.session.refresh_token || undefined,
-          });
-          Alert.alert('Success', 'Google login successful!');
-        }
-      } else if (accessToken) {
-        // Handle implicit flow
-        await googleLogin({
-          access_token: accessToken,
-          refresh_token: refreshToken || undefined,
-        });
-        Alert.alert('Success', 'Google login successful!');
-      } else {
-        throw new Error('No access token or authorization code found in callback');
-      }
-    } catch (error) {
-      console.error('OAuth callback error:', error);
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to process authentication');
     }
   };
 
@@ -201,8 +131,6 @@ export default function LoginScreen() {
         >
           <Text style={styles.googleButtonText}>Continue with Google</Text>
         </TouchableOpacity>
-
-
 
         <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
           <Text style={styles.switchText}>
@@ -283,7 +211,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-
   switchText: {
     textAlign: 'center',
     color: '#007AFF',

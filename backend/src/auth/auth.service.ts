@@ -1,11 +1,47 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { User } from '@supabase/supabase-js';
 
 @Injectable()
 export class AuthService {
   constructor(private readonly supabaseService: SupabaseService) {}
+
+  private async _ensureUserProfile(user: User) {
+    const adminClient = this.supabaseService.getAdminClient();
+    const { data: profile, error: profileError } = await adminClient
+      .from('user_profiles')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError && profileError.code !== 'PGRST116') {
+      // PGRST116: "exact one row" violation (i.e., not found)
+      throw new InternalServerErrorException('Error checking user profile');
+    }
+
+    if (!profile) {
+      const { error: insertError } = await adminClient
+        .from('user_profiles')
+        .insert({
+          user_id: user.id,
+          email: user.email,
+          // Extract name and avatar from user metadata if available
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name,
+          avatar_url: user.user_metadata?.avatar_url,
+          provider: user.app_metadata?.provider,
+        });
+
+      if (insertError) {
+        throw new InternalServerErrorException('Error creating user profile');
+      }
+    }
+  }
 
   async register(registerDto: RegisterDto) {
     const { data, error } = await this.supabaseService
@@ -17,6 +53,10 @@ export class AuthService {
 
     if (error) {
       throw new UnauthorizedException(error.message);
+    }
+
+    if (data.user) {
+      await this._ensureUserProfile(data.user);
     }
 
     return {
@@ -51,7 +91,7 @@ export class AuthService {
       .auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUri || 'foodlens://auth/callback', // Custom scheme deep link
+          redirectTo: redirectUri || 'exp://localhost:8081/--/auth/login-callback', // Use provided redirectUri or fallback
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -85,6 +125,10 @@ export class AuthService {
 
       if (!user) {
         throw new UnauthorizedException('No user found');
+      }
+
+      if (user) {
+        await this._ensureUserProfile(user);
       }
 
       // Return user and session info
@@ -137,7 +181,7 @@ export class AuthService {
 
   async getProfile(userId: string) {
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAdminClient()
       .auth.admin.getUserById(userId);
 
     if (error) {

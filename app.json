@@ -30,6 +30,19 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "package": "com.creativelabs.foodlens",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "foodlens"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "web": {
@@ -38,7 +51,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-dev-client"
     ],
     "experiments": {
       "typedRoutes": true
@@ -47,7 +61,8 @@
       "router": {},
       "eas": {
         "projectId": "b3af6eae-e9f8-409d-a053-010b67a523a1"
-      }
+      },
+      "supabaseRedirectUri": "foodlens://auth/callback"
     }
   }
 }

@@ -1,4 +1,5 @@
 import { atom } from 'jotai';
+import { getApiBaseUrl } from '@/lib/environment';
 
 export interface User {
   id: string;
@@ -31,5 +32,5 @@ export const userAtom = atom((get) => {
   return authState.user;
 });
 
-// API URL for backend
-export const API_BASE_URL = 'http://192.168.1.6:3001'; 
+// API URL for backend - use environment-aware URL
+export const API_BASE_URL = getApiBaseUrl(); 

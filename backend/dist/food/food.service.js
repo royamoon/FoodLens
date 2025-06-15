@@ -117,7 +117,6 @@ let FoodService = class FoodService {
             .select('*')
             .eq('id', id)
             .eq('user_id', userId)
-            .eq('user_id', userId)
             .single();
         if (error)
             throw new common_1.NotFoundException(`Food with ID ${id} not found`);

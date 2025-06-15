@@ -16,6 +16,31 @@ let AuthService = class AuthService {
     constructor(supabaseService) {
         this.supabaseService = supabaseService;
     }
+    async _ensureUserProfile(user) {
+        const adminClient = this.supabaseService.getAdminClient();
+        const { data: profile, error: profileError } = await adminClient
+            .from('user_profiles')
+            .select('user_id')
+            .eq('user_id', user.id)
+            .single();
+        if (profileError && profileError.code !== 'PGRST116') {
+            throw new common_1.InternalServerErrorException('Error checking user profile');
+        }
+        if (!profile) {
+            const { error: insertError } = await adminClient
+                .from('user_profiles')
+                .insert({
+                user_id: user.id,
+                email: user.email,
+                full_name: user.user_metadata?.full_name || user.user_metadata?.name,
+                avatar_url: user.user_metadata?.avatar_url,
+                provider: user.app_metadata?.provider,
+            });
+            if (insertError) {
+                throw new common_1.InternalServerErrorException('Error creating user profile');
+            }
+        }
+    }
     async register(registerDto) {
         const { data, error } = await this.supabaseService
             .getClient()
@@ -25,6 +50,9 @@ let AuthService = class AuthService {
         });
         if (error) {
             throw new common_1.UnauthorizedException(error.message);
+        }
+        if (data.user) {
+            await this._ensureUserProfile(data.user);
         }
         return {
             user: data.user,
@@ -54,7 +82,7 @@ let AuthService = class AuthService {
             .auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: redirectUri || 'foodlens://auth/callback',
+                redirectTo: redirectUri || 'exp://localhost:8081/--/auth/login-callback',
                 queryParams: {
                     access_type: 'offline',
                     prompt: 'consent',
@@ -82,6 +110,9 @@ let AuthService = class AuthService {
             }
             if (!user) {
                 throw new common_1.UnauthorizedException('No user found');
+            }
+            if (user) {
+                await this._ensureUserProfile(user);
             }
             return {
                 user: {
@@ -125,7 +156,7 @@ let AuthService = class AuthService {
     }
     async getProfile(userId) {
         const { data, error } = await this.supabaseService
-            .getClient()
+            .getAdminClient()
             .auth.admin.getUserById(userId);
         if (error) {
             throw new common_1.UnauthorizedException(error.message);
