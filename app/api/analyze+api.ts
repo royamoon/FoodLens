@@ -1,11 +1,12 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { envConfig } from '@/lib/environment';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
+const genAI = new GoogleGenerativeAI(envConfig.GEMINI_API_KEY);
 
 export async function POST(req: Request): Promise<Response> {
   try {
     // Check if API key is configured
-    if (!process.env.GEMINI_API_KEY) {
+    if (!envConfig.GEMINI_API_KEY) {
       console.error('GEMINI_API_KEY is not configured');
       return Response.json({ 
         error: 'API key not configured. Please add GEMINI_API_KEY to your environment variables.' 

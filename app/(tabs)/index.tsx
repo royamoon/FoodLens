@@ -15,6 +15,7 @@ import { userAtom, authStateAtom } from '@/atoms/auth';
 import { useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { logEnvironmentInfo, validateEnvironment } from '@/lib/environment';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +36,17 @@ export default function Index() {
       loadHistory();
     }
   }, [authState.user, authState.session?.access_token, loadHistory]);
+
+  useEffect(() => {
+    // Log environment info on app start (development only)
+    logEnvironmentInfo();
+    
+    // Validate environment variables
+    const { isValid, missingVars } = validateEnvironment();
+    if (!isValid) {
+      console.warn('⚠️ Missing environment variables:', missingVars);
+    }
+  }, []);
 
 
 

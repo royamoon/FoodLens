@@ -40,6 +40,8 @@ foodlens://auth/login-callback
 exp://localhost:8081/--/auth/login-callback
 ```
 
+**⚠️ QUAN TRỌNG:** Đảm bảo Supabase Dashboard có đúng redirect URLs này!
+
 ### 3. 🎯 Cấu Hình Đã Thực Hiện
 
 #### app.json
@@ -70,9 +72,10 @@ export const getRedirectUrl = () => {
 };
 ```
 
-#### Callback Routes
-- `/auth/login-callback` - Cho Expo Go
-- `/auth/callback` - Cho Development Build
+#### Deep Link Handler
+- `_layout.tsx` - Xử lý deep link với `exchangeCodeForSession()`
+- Tự động parse OAuth callback và update auth state
+- Không cần manual token parsing
 
 ### 4. 🧪 Testing Flow
 

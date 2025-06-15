@@ -1,0 +1,13 @@
+name: Publish preview update
+
+on:
+  pull_request:
+    branches: ['main', 'develop']
+  workflow_dispatch:
+
+jobs:
+  publish_preview_update:
+    name: Publish preview update
+    type: update
+    params:
+      branch: ${{ github.ref || 'preview' }} 

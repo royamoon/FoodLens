@@ -1,19 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Linking } from 'react-native';
 import { useAtom } from 'jotai';
 import { loginAtom, registerAtom } from '@/atoms/auth-actions';
 import { authStateAtom } from '@/atoms/auth';
-import { createClient } from '@supabase/supabase-js';
-import * as WebBrowser from 'expo-web-browser';
-import { getRedirectUrl } from '@/lib/environment';
-
-WebBrowser.maybeCompleteAuthSession();
-
-// Direct Supabase client for OAuth
-const supabase = createClient(
-  'https://dgcxvpicsaxzrebmmnyl.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnY3h2cGljc2F4enJlYm1tbnlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2MTIwOTEsImV4cCI6MjA2NTE4ODA5MX0.DKXYJPfad_oHOvGfyBtcHCm7gi2pkL3VOPW_EMHesDs'
-);
+import { getRedirectUrl, getApiBaseUrl } from '@/lib/environment';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -43,50 +33,72 @@ export default function LoginScreen() {
 
   const handleGoogleLogin = async () => {
     try {
-      // Use environment-aware redirect URI
+      console.log('Starting Google OAuth flow...');
+      
+      // Use backend OAuth endpoint to get the authorization URL
+      const apiBaseUrl = getApiBaseUrl();
       const redirectUri = getRedirectUrl();
+      
+      console.log('API Base URL:', apiBaseUrl);
       console.log('Redirect URI:', redirectUri);
-
-      // Direct Supabase OAuth call
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUri,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
+      
+      // Test network connectivity first
+      console.log('Testing network connectivity...');
+      
+      const response = await fetch(`${apiBaseUrl}/auth/login/google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          redirectUri: redirectUri,
+        }),
+        timeout: 10000, // 10 second timeout
       });
 
-      if (error) {
-        throw new Error(error.message);
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Backend error response:', errorText);
+        throw new Error(`Backend error (${response.status}): ${errorText}`);
       }
+
+      const data = await response.json();
+      console.log('Backend response:', data);
 
       if (data.url) {
         console.log('Opening OAuth URL:', data.url);
         
-        // Use WebBrowser to handle OAuth flow properly
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUri,
-          {
-            showInRecents: true,
-          }
-        );
-
-        console.log('OAuth result:', result);
-
-        if (result.type === 'cancel') {
-          Alert.alert('Cancelled', 'Google login was cancelled');
-        } else if (result.type === 'dismiss') {
-          Alert.alert('Dismissed', 'Google login was dismissed');
+        // Open the OAuth URL directly with Linking
+        const supported = await Linking.canOpenURL(data.url);
+        console.log('URL supported:', supported);
+        
+        if (supported) {
+          await Linking.openURL(data.url);
+          console.log('OAuth URL opened successfully');
+        } else {
+          throw new Error('Cannot open OAuth URL - not supported');
         }
-        // Success case will be handled by the callback page
+      } else {
+        throw new Error('No OAuth URL received from backend');
       }
     } catch (error) {
       console.error('Google login error:', error);
-      Alert.alert('Error', error instanceof Error ? error.message : 'Google login failed');
+      
+      // More detailed error logging
+      if (error instanceof TypeError && error.message.includes('Network request failed')) {
+        console.error('Network error details:', {
+          message: error.message,
+          stack: error.stack,
+          apiBaseUrl: getApiBaseUrl(),
+          redirectUri: getRedirectUrl(),
+        });
+        Alert.alert('Network Error', 'Cannot connect to server. Please check if backend is running on localhost:3001');
+      } else {
+        Alert.alert('Error', error instanceof Error ? error.message : 'Google login failed');
+      }
     }
   };
 
@@ -204,7 +216,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   googleButtonText: {
     color: 'white',

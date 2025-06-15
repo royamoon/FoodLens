@@ -5,5 +5,14 @@
 expo-env.d.ts
 # @end expo-cli
 node_modules
-node_modules
 .env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# EAS Build
+.eas/build/
+
+# Keep workflows but ignore build artifacts
+!.eas/workflows/
